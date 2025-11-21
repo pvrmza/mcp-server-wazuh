@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mcp-server-wazuh.fullname" . }}
+  labels:
+    {{- include "mcp-server-wazuh.labels" . | nindent 4 }}
+data:
+  WAZUH_API_HOST: {{ .Values.wazuh.api.host | quote }}
+  WAZUH_API_PORT: {{ .Values.wazuh.api.port | quote }}
+  WAZUH_INDEXER_HOST: {{ .Values.wazuh.indexer.host | quote }}
+  WAZUH_INDEXER_PORT: {{ .Values.wazuh.indexer.port | quote }}
+  WAZUH_VERIFY_SSL: {{ .Values.wazuh.verifySSL | quote }}
+  WAZUH_TEST_PROTOCOL: {{ .Values.wazuh.protocol | quote }}
+  RUST_LOG: {{ .Values.logging.level | quote }}

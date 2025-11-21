@@ -1,0 +1,34 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+🛡️  Wazuh MCP Server has been deployed!
+
+Configuration:
+- Wazuh API Host: {{ .Values.wazuh.api.host }}:{{ .Values.wazuh.api.port }}
+- Wazuh Indexer Host: {{ .Values.wazuh.indexer.host }}:{{ .Values.wazuh.indexer.port }}
+- SSL Verification: {{ .Values.wazuh.verifySSL }}
+- Protocol: {{ .Values.wazuh.protocol }}
+- Log Level: {{ .Values.logging.level }}
+
+To get the application pod name:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "mcp-server-wazuh.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+
+To view logs:
+  kubectl logs -f $POD_NAME --namespace {{ .Release.Namespace }}
+
+{{- if .Values.service.enabled }}
+
+To access the service:
+  kubectl port-forward $POD_NAME --namespace {{ .Release.Namespace }} {{ .Values.service.port }}:{{ .Values.service.port }}
+
+Then access the service at http://127.0.0.1:{{ .Values.service.port }}
+{{- end }}
+
+📚 Documentation:
+  https://github.com/gbrigandi/mcp-server-wazuh
+
+⚠️  Security Notes:
+  - Review and update Wazuh credentials in values.yaml before production deployment
+  - Enable SSL verification (wazuh.verifySSL: true) in production environments
+  - Consider using external secrets management (e.g., Sealed Secrets, External Secrets Operator)

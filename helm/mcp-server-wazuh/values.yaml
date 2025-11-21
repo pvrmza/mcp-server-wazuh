@@ -1,0 +1,132 @@
+# Default values for mcp-server-wazuh
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/pvrmza/mcp-server-wazuh
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Wazuh API Configuration (Manager)
+wazuh:
+  api:
+    host: "localhost"
+    port: 55000
+    # Credentials stored in secret
+    username: "wazuh"
+    password: "wazuh"
+
+  # Wazuh Indexer Configuration
+  indexer:
+    host: "localhost"
+    port: 9200
+    username: "admin"
+    password: "admin"
+
+  # SSL Configuration
+  verifySSL: false
+  protocol: "https"
+
+# Logging configuration
+logging:
+  level: "info"  # Options: trace, debug, info, warn, error
+
+# Service configuration (optional - mainly for HTTP transport if needed)
+service:
+  enabled: false
+  type: ClusterIP
+  port: 8000
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Liveness probe - checks if container is alive
+livenessProbe:
+  enabled: true
+  exec:
+    command:
+    - /bin/sh
+    - -c
+    - "ps aux | grep mcp-server-wazuh | grep -v grep"
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe - checks if container is ready to serve traffic
+readinessProbe:
+  enabled: true
+  exec:
+    command:
+    - /bin/sh
+    - -c
+    - "ps aux | grep mcp-server-wazuh | grep -v grep"
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: mcp-server-wazuh
+description: A Helm chart for Wazuh MCP Server - Bridge between Wazuh SIEM and AI assistants
+type: application
+version: 0.2.4
+appVersion: "0.2.4"
+keywords:
+  - wazuh
+  - mcp
+  - security
+  - siem
+home: https://github.com/gbrigandi/mcp-server-wazuh
+sources:
+  - https://github.com/gbrigandi/mcp-server-wazuh
+maintainers:
+  - name: gbrigandi
+    email: gbrigand@gmail.com

@@ -78,13 +78,31 @@ jobs:
           asset_name: mcp-server-wazuh-${{ matrix.asset_name_suffix }}
           asset_content_type: application/octet-stream
 
+      # Upload Linux binary as artifact for Docker build
+      - name: Upload Linux binary artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: ./target/${{ matrix.target }}/release/${{ matrix.output_name }}
+          retention-days: 1
+
   build_docker:
     name: Build and Push Docker Image
-    needs: create_release
+    needs: build_binaries
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binary
+          path: .
+
+      - name: Make binary executable
+        run: chmod +x mcp-server-wazuh
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -109,7 +127,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

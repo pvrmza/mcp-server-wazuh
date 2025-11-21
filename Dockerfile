@@ -1,26 +1,22 @@
-FROM rust:1.86-slim as builder
+# Optimized Dockerfile using pre-compiled binary
+# The binary is built by GitHub Actions and passed to this image
+# This reduces build time from 20-30 minutes to < 1 minute
 
-WORKDIR /usr/src/app
-COPY . .
-
-RUN apt-get update && \
-    apt-get install -y pkg-config libssl-dev build-essential perl make && \
-    cargo build --release
-
-FROM debian:bookworm-slim
-
-RUN apt-get update && \
-    apt-get install -y ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+FROM gcr.io/distroless/cc-debian12:nonroot
 
 WORKDIR /app
 
-COPY --from=builder /usr/src/app/target/release/mcp-server-wazuh /app/mcp-server-wazuh
-COPY .env.example /app/.env.example
+# Copy pre-compiled binary from GitHub Actions workflow
+# The binary is built with musl for static linking
+COPY mcp-server-wazuh /app/mcp-server-wazuh
 
-RUN useradd -m wazuh
-USER wazuh
+# Distroless images:
+# - Run as non-root user (uid 65532) by default
+# - No shell, no package manager
+# - Minimal attack surface (~20MB vs ~100MB+ for debian-slim)
+# - Only contains runtime dependencies
 
+# Optional: expose port for documentation
 EXPOSE 8000
 
-CMD ["./mcp-server-wazuh"]
+ENTRYPOINT ["/app/mcp-server-wazuh"]

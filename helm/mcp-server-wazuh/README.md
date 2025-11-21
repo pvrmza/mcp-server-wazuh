@@ -28,18 +28,30 @@ The following table lists the configurable parameters and their default values.
 | `image.tag` | Container image tag | `""` (uses appVersion) |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 
+### Secret Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `existingSecret` | Name of existing Secret to use instead of creating one | `""` (creates new secret) |
+
+**Note**: If `existingSecret` is provided, the Secret must contain these keys:
+- `WAZUH_API_USERNAME`
+- `WAZUH_API_PASSWORD`
+- `WAZUH_INDEXER_USERNAME`
+- `WAZUH_INDEXER_PASSWORD`
+
 ### Wazuh Configuration
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `wazuh.api.host` | Wazuh Manager API hostname | `localhost` |
 | `wazuh.api.port` | Wazuh Manager API port | `55000` |
-| `wazuh.api.username` | Wazuh Manager API username | `wazuh` |
-| `wazuh.api.password` | Wazuh Manager API password | `wazuh` |
+| `wazuh.api.username` | Wazuh Manager API username (only if existingSecret not set) | `wazuh` |
+| `wazuh.api.password` | Wazuh Manager API password (only if existingSecret not set) | `wazuh` |
 | `wazuh.indexer.host` | Wazuh Indexer hostname | `localhost` |
 | `wazuh.indexer.port` | Wazuh Indexer port | `9200` |
-| `wazuh.indexer.username` | Wazuh Indexer username | `admin` |
-| `wazuh.indexer.password` | Wazuh Indexer password | `admin` |
+| `wazuh.indexer.username` | Wazuh Indexer username (only if existingSecret not set) | `admin` |
+| `wazuh.indexer.password` | Wazuh Indexer password (only if existingSecret not set) | `admin` |
 | `wazuh.verifySSL` | Enable SSL certificate verification | `false` |
 | `wazuh.protocol` | Protocol for connections (http/https) | `https` |
 
@@ -93,20 +105,102 @@ helm install my-wazuh-mcp ./helm/mcp-server-wazuh -f custom-values.yaml
 
 ### Using with External Secrets
 
-For production deployments, consider using Kubernetes External Secrets:
+For production deployments, use an existing Secret managed by External Secrets Operator, Sealed Secrets, or Vault:
+
+#### Option 1: Using External Secrets Operator
 
 ```yaml
-# Don't store credentials in values.yaml
-# Instead, reference an external secret
+# external-secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: wazuh-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: wazuh-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: WAZUH_API_USERNAME
+      remoteRef:
+        key: wazuh/api
+        property: username
+    - secretKey: WAZUH_API_PASSWORD
+      remoteRef:
+        key: wazuh/api
+        property: password
+    - secretKey: WAZUH_INDEXER_USERNAME
+      remoteRef:
+        key: wazuh/indexer
+        property: username
+    - secretKey: WAZUH_INDEXER_PASSWORD
+      remoteRef:
+        key: wazuh/indexer
+        property: password
+```
+
+Then reference it in values.yaml:
+
+```yaml
+existingSecret: "wazuh-credentials"
+
 wazuh:
   api:
     host: "wazuh-manager.example.com"
     port: 55000
-    # Username and password managed externally
+    # Credentials managed by external secret
   indexer:
     host: "wazuh-indexer.example.com"
     port: 9200
-    # Username and password managed externally
+    # Credentials managed by external secret
+```
+
+#### Option 2: Using Sealed Secrets
+
+```bash
+# Create a regular secret
+kubectl create secret generic wazuh-credentials \
+  --from-literal=WAZUH_API_USERNAME=admin \
+  --from-literal=WAZUH_API_PASSWORD=SecurePass123 \
+  --from-literal=WAZUH_INDEXER_USERNAME=admin \
+  --from-literal=WAZUH_INDEXER_PASSWORD=SecurePass456 \
+  --dry-run=client -o yaml > wazuh-secret.yaml
+
+# Seal it
+kubeseal -f wazuh-secret.yaml -w wazuh-sealed-secret.yaml
+
+# Apply the sealed secret
+kubectl apply -f wazuh-sealed-secret.yaml
+```
+
+Then in values.yaml:
+
+```yaml
+existingSecret: "wazuh-credentials"
+# Rest of configuration...
+```
+
+#### Option 3: Manual Secret Creation
+
+```bash
+# Create secret manually
+kubectl create secret generic wazuh-credentials \
+  --from-literal=WAZUH_API_USERNAME=admin \
+  --from-literal=WAZUH_API_PASSWORD=SecurePass123 \
+  --from-literal=WAZUH_INDEXER_USERNAME=admin \
+  --from-literal=WAZUH_INDEXER_PASSWORD=SecurePass456
+```
+
+Then install the chart:
+
+```bash
+helm install wazuh-mcp ./helm/mcp-server-wazuh \
+  --set existingSecret=wazuh-credentials \
+  --set wazuh.api.host=wazuh-manager.example.com \
+  --set wazuh.indexer.host=wazuh-indexer.example.com
 ```
 
 ## Uninstalling

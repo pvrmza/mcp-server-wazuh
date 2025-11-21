@@ -15,7 +15,9 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if not .Values.existingSecret }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -42,7 +44,7 @@ spec:
         - configMapRef:
             name: {{ include "mcp-server-wazuh.fullname" . }}
         - secretRef:
-            name: {{ include "mcp-server-wazuh.fullname" . }}
+            name: {{ .Values.existingSecret | default (include "mcp-server-wazuh.fullname" .) }}
         {{- if .Values.service.enabled }}
         ports:
         - name: http

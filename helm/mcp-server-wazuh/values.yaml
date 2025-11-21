@@ -40,12 +40,21 @@ securityContext:
   readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
 
+# Secret configuration
+# If existingSecret is provided, it will be used instead of creating a new secret
+# The existing secret must contain the following keys:
+#   - WAZUH_API_USERNAME
+#   - WAZUH_API_PASSWORD
+#   - WAZUH_INDEXER_USERNAME
+#   - WAZUH_INDEXER_PASSWORD
+existingSecret: ""
+
 # Wazuh API Configuration (Manager)
 wazuh:
   api:
     host: "localhost"
     port: 55000
-    # Credentials stored in secret
+    # Credentials stored in secret (only used if existingSecret is not set)
     username: "wazuh"
     password: "wazuh"
 

@@ -55,6 +55,35 @@ The following table lists the configurable parameters and their default values.
 | `wazuh.verifySSL` | Enable SSL certificate verification | `false` |
 | `wazuh.protocol` | Protocol for connections (http/https) | `https` |
 
+### Server Mode Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `mode` | Server mode: `stdio` or `http` | `stdio` |
+| `http.port` | HTTP server port (used when mode=http) | `3000` |
+| `http.host` | HTTP server bind address (used when mode=http) | `0.0.0.0` |
+
+**Mode Options:**
+- **`stdio`** (default): Standard MCP server using stdin/stdout. Suitable for local clients and job-based workloads.
+- **`http`**: HTTP REST API server. Exposes MCP tools via HTTP endpoints. Automatically enables Service.
+
+### Service Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `service.enabled` | Manually enable Service | `false` (auto-enabled when mode=http) |
+| `service.type` | Kubernetes Service type | `ClusterIP` |
+| `service.port` | Service port | `3000` |
+| `service.annotations` | Service annotations | `{}` |
+
+**Note:** When `mode=http`, the Service is automatically created even if `service.enabled=false`.
+
+### Logging Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `logging.level` | Log level (trace, debug, info, warn, error) | `info` |
+
 ### Resource Configuration
 
 | Parameter | Description | Default |
@@ -101,6 +130,69 @@ Install with custom values:
 
 ```bash
 helm install my-wazuh-mcp ./helm/mcp-server-wazuh -f custom-values.yaml
+```
+
+### HTTP Mode Deployment
+
+Deploy the server in HTTP mode with a LoadBalancer for external access:
+
+```yaml
+# http-mode-values.yaml
+mode: http
+
+wazuh:
+  api:
+    host: "wazuh-manager.example.com"
+    port: 55000
+    username: "admin"
+    password: "SecurePassword123"
+  indexer:
+    host: "wazuh-indexer.example.com"
+    port: 9200
+    username: "admin"
+    password: "SecurePassword456"
+  verifySSL: true
+
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+http:
+  port: 3000
+  host: "0.0.0.0"
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+```
+
+Install:
+```bash
+helm install wazuh-mcp-http ./helm/mcp-server-wazuh -f http-mode-values.yaml
+```
+
+Test the HTTP endpoint:
+```bash
+# Get the service external IP/hostname
+kubectl get svc -l app.kubernetes.io/name=mcp-server-wazuh
+
+# Health check
+curl http://<EXTERNAL-IP>:3000/health
+
+# Call MCP tool
+curl -X POST http://<EXTERNAL-IP>:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list",
+    "params": {}
+  }'
 ```
 
 ### Using with External Secrets

@@ -5,11 +5,16 @@ Your release is named {{ .Release.Name }}.
 🛡️  Wazuh MCP Server has been deployed!
 
 Configuration:
+- Server Mode: {{ .Values.mode }}
 - Wazuh API Host: {{ .Values.wazuh.api.host }}:{{ .Values.wazuh.api.port }}
 - Wazuh Indexer Host: {{ .Values.wazuh.indexer.host }}:{{ .Values.wazuh.indexer.port }}
 - SSL Verification: {{ .Values.wazuh.verifySSL }}
 - Protocol: {{ .Values.wazuh.protocol }}
 - Log Level: {{ .Values.logging.level }}
+{{- if eq .Values.mode "http" }}
+- HTTP Port: {{ .Values.http.port }}
+- HTTP Host: {{ .Values.http.host }}
+{{- end }}
 
 To get the application pod name:
   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "mcp-server-wazuh.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
@@ -17,12 +22,53 @@ To get the application pod name:
 To view logs:
   kubectl logs -f $POD_NAME --namespace {{ .Release.Namespace }}
 
-{{- if .Values.service.enabled }}
+{{- if or .Values.service.enabled (eq .Values.mode "http") }}
+
+{{- if eq .Values.mode "http" }}
+🌐 HTTP Mode Enabled!
+
+To access the HTTP API:
+{{- if eq .Values.service.type "LoadBalancer" }}
+
+  # Get the external IP/hostname
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "mcp-server-wazuh.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  export SERVICE_HOST=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "mcp-server-wazuh.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+  # Health check
+  curl http://${SERVICE_IP:-$SERVICE_HOST}:{{ .Values.service.port }}/health
+
+  # List available tools
+  curl -X POST http://${SERVICE_IP:-$SERVICE_HOST}:{{ .Values.service.port }}/mcp \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+
+{{- else if eq .Values.service.type "NodePort" }}
+
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "mcp-server-wazuh.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+
+  curl http://$NODE_IP:$NODE_PORT/health
+
+{{- else }}
+
+  # Port forward to access locally
+  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME {{ .Values.http.port }}:{{ .Values.http.port }}
+
+  # Then in another terminal:
+  curl http://127.0.0.1:{{ .Values.http.port }}/health
+
+  curl -X POST http://127.0.0.1:{{ .Values.http.port }}/mcp \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+
+{{- end }}
+{{- else }}
 
 To access the service:
   kubectl port-forward $POD_NAME --namespace {{ .Release.Namespace }} {{ .Values.service.port }}:{{ .Values.service.port }}
 
 Then access the service at http://127.0.0.1:{{ .Values.service.port }}
+{{- end }}
 {{- end }}
 
 📚 Documentation:

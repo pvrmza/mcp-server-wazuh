@@ -68,7 +68,7 @@ jobs:
       - name: Build binary
         run: cargo build --verbose --release --target ${{ matrix.target }}
 
-      - name: Upload Release Asset
+      - name: Upload Release Asset (mcp-server-wazuh)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,13 +78,25 @@ jobs:
           asset_name: mcp-server-wazuh-${{ matrix.asset_name_suffix }}
           asset_content_type: application/octet-stream
 
-      # Upload Linux binary as artifact for Docker build
-      - name: Upload Linux binary artifact
+      - name: Upload Release Asset (mcp-http-server)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/mcp-http-server${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          asset_name: mcp-http-server-${{ matrix.asset_name_suffix }}
+          asset_content_type: application/octet-stream
+
+      # Upload Linux binaries as artifacts for Docker build
+      - name: Upload Linux binaries artifact
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: linux-binary
-          path: ./target/${{ matrix.target }}/release/${{ matrix.output_name }}
+          name: linux-binaries
+          path: |
+            ./target/${{ matrix.target }}/release/mcp-server-wazuh
+            ./target/${{ matrix.target }}/release/mcp-http-server
           retention-days: 1
 
   build_docker:
@@ -95,14 +107,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Linux binary
+      - name: Download Linux binaries
         uses: actions/download-artifact@v4
         with:
-          name: linux-binary
+          name: linux-binaries
           path: .
 
-      - name: Make binary executable
-        run: chmod +x mcp-server-wazuh
+      - name: Make binaries executable
+        run: |
+          chmod +x mcp-server-wazuh
+          chmod +x mcp-http-server
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

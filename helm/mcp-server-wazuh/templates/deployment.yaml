@@ -40,24 +40,59 @@ spec:
           {{- toYaml .Values.securityContext | nindent 12 }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if eq .Values.mode "http" }}
+        command: ["/app/mcp-http-server"]
+        args:
+          - "--port={{ .Values.http.port }}"
+          - "--host={{ .Values.http.host }}"
+          - "--mcp-binary=/app/mcp-server-wazuh"
+        {{- end }}
         envFrom:
         - configMapRef:
             name: {{ include "mcp-server-wazuh.fullname" . }}
         - secretRef:
             name: {{ .Values.existingSecret | default (include "mcp-server-wazuh.fullname" .) }}
-        {{- if .Values.service.enabled }}
+        {{- if or .Values.service.enabled (eq .Values.mode "http") }}
         ports:
         - name: http
-          containerPort: {{ .Values.service.port }}
+          containerPort: {{ .Values.http.port }}
           protocol: TCP
         {{- end }}
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
-          {{- toYaml .Values.livenessProbe | nindent 10 }}
+          {{- if eq .Values.mode "http" }}
+          httpGet:
+            path: /health
+            port: http
+          {{- else }}
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "ps aux | grep mcp-server-wazuh | grep -v grep"
+          {{- end }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
         {{- end }}
         {{- if .Values.readinessProbe.enabled }}
         readinessProbe:
-          {{- toYaml .Values.readinessProbe | nindent 10 }}
+          {{- if eq .Values.mode "http" }}
+          httpGet:
+            path: /health
+            port: http
+          {{- else }}
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "ps aux | grep mcp-server-wazuh | grep -v grep"
+          {{- end }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}

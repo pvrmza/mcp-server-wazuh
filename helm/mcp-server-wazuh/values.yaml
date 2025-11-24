@@ -73,11 +73,29 @@ wazuh:
 logging:
   level: "info"  # Options: trace, debug, info, warn, error
 
-# Service configuration (optional - mainly for HTTP transport if needed)
+# Server mode configuration
+# Mode options:
+#   - stdio: Standard MCP server using stdin/stdout (default)
+#   - http: HTTP wrapper server exposing REST API
+mode: "stdio"
+
+# HTTP server configuration (only used when mode=http)
+http:
+  # Port for the HTTP server to listen on
+  port: 3000
+  # Host address to bind to
+  host: "0.0.0.0"
+
+# Service configuration
+# Automatically enabled when mode=http, can be manually overridden
 service:
-  enabled: false
+  enabled: false  # Set to true to expose the service, or leave false to auto-enable with mode=http
   type: ClusterIP
-  port: 8000
+  port: 3000  # Should match http.port when using HTTP mode
+  annotations: {}
+    # Example annotations for LoadBalancer or specific cloud providers:
+    # service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 
 resources:
   limits:
@@ -88,26 +106,22 @@ resources:
     memory: 128Mi
 
 # Liveness probe - checks if container is alive
+# Note: For HTTP mode, the probe will automatically use HTTP GET /health
+# For stdio mode, it uses process check (requires shell in container)
 livenessProbe:
   enabled: true
-  exec:
-    command:
-    - /bin/sh
-    - -c
-    - "ps aux | grep mcp-server-wazuh | grep -v grep"
+  # These settings apply to both modes
   initialDelaySeconds: 30
   periodSeconds: 30
   timeoutSeconds: 5
   failureThreshold: 3
 
 # Readiness probe - checks if container is ready to serve traffic
+# Note: For HTTP mode, the probe will automatically use HTTP GET /health
+# For stdio mode, it uses process check (requires shell in container)
 readinessProbe:
   enabled: true
-  exec:
-    command:
-    - /bin/sh
-    - -c
-    - "ps aux | grep mcp-server-wazuh | grep -v grep"
+  # These settings apply to both modes
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5

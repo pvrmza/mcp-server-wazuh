@@ -1,15 +1,100 @@
 version: '3.8'
 
 services:
-  mcp-server:
-    build: .
-    ports:
-      - "8000:8000"
+  # MCP Server in stdio mode (for local MCP clients)
+  # This service is useful for testing or when the MCP server will be used
+  # via stdin/stdout communication by spawning it as a subprocess
+  mcp-server-stdio:
+    image: ghcr.io/pvrmza/mcp-server-wazuh:latest
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
+    container_name: mcp-server-wazuh-stdio
     environment:
-      - WAZUH_HOST=${WAZUH_HOST:-localhost}
-      - WAZUH_PORT=${WAZUH_PORT:-55000}
-      - WAZUH_USER=${WAZUH_USER:-admin}
-      - WAZUH_PASS=${WAZUH_PASS:-admin}
-      - VERIFY_SSL=${VERIFY_SSL:-false}
-      - MCP_SERVER_PORT=${MCP_SERVER_PORT:-8000}
+      # Wazuh Manager API Configuration
+      - WAZUH_API_HOST=${WAZUH_API_HOST:-localhost}
+      - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
+      - WAZUH_API_USERNAME=${WAZUH_API_USERNAME:-wazuh}
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD:-wazuh}
+
+      # Wazuh Indexer API Configuration
+      - WAZUH_INDEXER_HOST=${WAZUH_INDEXER_HOST:-localhost}
+      - WAZUH_INDEXER_PORT=${WAZUH_INDEXER_PORT:-9200}
+      - WAZUH_INDEXER_USERNAME=${WAZUH_INDEXER_USERNAME:-admin}
+      - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD:-admin}
+
+      # SSL Configuration
+      - WAZUH_VERIFY_SSL=${WAZUH_VERIFY_SSL:-false}
+
+      # Optional: Protocol override (http or https)
+      # - WAZUH_TEST_PROTOCOL=${WAZUH_TEST_PROTOCOL:-https}
+
+      # Logging Configuration
+      - RUST_LOG=${RUST_LOG:-info}
     restart: unless-stopped
+    # Note: This service runs in stdio mode and doesn't expose any ports
+    # It's meant to be used as a subprocess or for testing
+
+  # MCP Server in HTTP mode (for remote access and web applications)
+  # This service exposes the MCP server via HTTP endpoints for remote access
+  mcp-server-http:
+    image: ghcr.io/pvrmza/mcp-server-wazuh:latest
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
+    container_name: mcp-server-wazuh-http
+    entrypoint: ["/app/mcp-http-server"]
+    command: ["--port", "3000", "--host", "0.0.0.0", "--mcp-binary", "/app/mcp-server-wazuh"]
+    ports:
+      - "${MCP_HTTP_PORT:-3000}:3000"
+    environment:
+      # Wazuh Manager API Configuration
+      - WAZUH_API_HOST=${WAZUH_API_HOST:-localhost}
+      - WAZUH_API_PORT=${WAZUH_API_PORT:-55000}
+      - WAZUH_API_USERNAME=${WAZUH_API_USERNAME:-wazuh}
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD:-wazuh}
+
+      # Wazuh Indexer API Configuration
+      - WAZUH_INDEXER_HOST=${WAZUH_INDEXER_HOST:-localhost}
+      - WAZUH_INDEXER_PORT=${WAZUH_INDEXER_PORT:-9200}
+      - WAZUH_INDEXER_USERNAME=${WAZUH_INDEXER_USERNAME:-admin}
+      - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD:-admin}
+
+      # SSL Configuration
+      - WAZUH_VERIFY_SSL=${WAZUH_VERIFY_SSL:-false}
+
+      # Optional: Protocol override (http or https)
+      # - WAZUH_TEST_PROTOCOL=${WAZUH_TEST_PROTOCOL:-https}
+
+      # Logging Configuration
+      - RUST_LOG=${RUST_LOG:-info}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# To use this docker-compose file:
+#
+# 1. Create a .env file from .env.example:
+#    cp ../.env.example .env
+#
+# 2. Update the .env file with your Wazuh configuration
+#
+# 3. Run the HTTP server (recommended for remote access):
+#    docker-compose up -d mcp-server-http
+#
+# 4. Or run the stdio server (for testing):
+#    docker-compose up mcp-server-stdio
+#
+# 5. Access the HTTP server:
+#    - Health check: curl http://localhost:3000/health
+#    - MCP endpoint: curl -X POST http://localhost:3000/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+#
+# 6. For production deployments:
+#    - Set WAZUH_VERIFY_SSL=true
+#    - Use proper SSL certificates
+#    - Consider using Docker secrets for sensitive credentials
+#    - Use the pre-built image from ghcr.io/gbrigandi/mcp-server-wazuh:latest

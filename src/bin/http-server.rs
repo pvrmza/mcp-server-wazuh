@@ -61,10 +61,11 @@ struct McpProcess {
     child: Child,
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
+    initialized: bool,
 }
 
 impl McpProcess {
-    /// Start a new MCP server process
+    /// Start a new MCP server process and initialize it
     fn start(binary_path: &str) -> anyhow::Result<Self> {
         tracing::info!("Starting MCP server process: {}", binary_path);
 
@@ -87,30 +88,109 @@ impl McpProcess {
 
         let stdout = BufReader::new(stdout);
 
-        Ok(Self {
+        let mut process = Self {
             child,
             stdin,
             stdout,
-        })
+            initialized: false,
+        };
+
+        // Automatically initialize the MCP connection
+        process.initialize()?;
+
+        Ok(process)
+    }
+
+    /// Initialize the MCP server connection
+    fn initialize(&mut self) -> anyhow::Result<()> {
+        tracing::info!("Initializing MCP server connection");
+
+        // Step 1: Send initialize request
+        let init_request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 0,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "roots": {
+                        "listChanged": false
+                    }
+                },
+                "clientInfo": {
+                    "name": "mcp-http-server",
+                    "version": "0.3.0"
+                }
+            }
+        });
+
+        tracing::debug!("Sending initialize request");
+        let response = self.send_message(&init_request, true)?;
+
+        // Check for errors in initialize response
+        if let Some(error) = response.get("error") {
+            return Err(anyhow::anyhow!("Initialize failed: {}", error));
+        }
+
+        tracing::info!("MCP server initialized successfully");
+
+        // Step 2: Send initialized notification (no response expected)
+        let initialized_notification = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized"
+        });
+
+        tracing::debug!("Sending initialized notification");
+        self.send_message(&initialized_notification, false)?;
+
+        self.initialized = true;
+        tracing::info!("MCP initialization complete");
+
+        Ok(())
+    }
+
+    /// Send a message to the MCP server
+    ///
+    /// # Arguments
+    /// * `message` - The JSON-RPC message to send
+    /// * `expect_response` - Whether to wait for a response (false for notifications)
+    fn send_message(&mut self, message: &Value, expect_response: bool) -> anyhow::Result<Value> {
+        // Write message to stdin
+        let message_str = serde_json::to_string(message)?;
+        tracing::debug!("Sending to MCP: {}", message_str);
+
+        writeln!(self.stdin, "{}", message_str)?;
+        self.stdin.flush()?;
+
+        // Read response if expected
+        if expect_response {
+            let mut response_line = String::new();
+            self.stdout.read_line(&mut response_line)?;
+
+            if response_line.is_empty() {
+                return Err(anyhow::anyhow!("MCP server closed connection"));
+            }
+
+            tracing::debug!("Received from MCP: {}", response_line.trim());
+
+            let response: Value = serde_json::from_str(&response_line)?;
+            Ok(response)
+        } else {
+            // For notifications, return empty success response
+            Ok(serde_json::json!({"jsonrpc": "2.0", "result": null}))
+        }
     }
 
     /// Send a JSON-RPC request and read the response
     fn send_request(&mut self, request: &Value) -> anyhow::Result<Value> {
-        // Write request to stdin
-        let request_str = serde_json::to_string(request)?;
-        tracing::debug!("Sending to MCP: {}", request_str);
+        if !self.initialized {
+            return Err(anyhow::anyhow!("MCP server not initialized"));
+        }
 
-        writeln!(self.stdin, "{}", request_str)?;
-        self.stdin.flush()?;
+        // Determine if this is a notification (no "id" field) or a request
+        let is_notification = request.get("id").is_none();
 
-        // Read response from stdout
-        let mut response_line = String::new();
-        self.stdout.read_line(&mut response_line)?;
-
-        tracing::debug!("Received from MCP: {}", response_line);
-
-        let response: Value = serde_json::from_str(&response_line)?;
-        Ok(response)
+        self.send_message(request, !is_notification)
     }
 }
 
@@ -123,8 +203,12 @@ impl Drop for McpProcess {
 }
 
 /// Health check endpoint
-async fn health() -> &'static str {
-    "OK"
+async fn health() -> Json<Value> {
+    Json(serde_json::json!({
+        "status": "healthy",
+        "service": "mcp-http-server",
+        "version": "0.3.0"
+    }))
 }
 
 /// Main MCP endpoint that forwards JSON-RPC requests

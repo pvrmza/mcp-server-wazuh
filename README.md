@@ -199,6 +199,81 @@ Configuration is managed through environment variables. A `.env` file can be pla
 **Note on `WAZUH_VERIFY_SSL`:** For production environments, it is strongly recommended to set `WAZUH_VERIFY_SSL=true` and ensure proper certificate validation for both Wazuh Manager API and Wazuh Indexer connections. Setting it to `false` disables certificate checks, which is insecure.
 The "Required: Yes" indicates that these variables are essential for the server to connect to the respective Wazuh components. While defaults are provided, they are unlikely to match a production or non-local setup.
 
+## HTTP Server Mode
+
+In addition to the standard stdio transport for MCP clients, the server can be run as an HTTP service for remote access or integration with web applications.
+
+### Starting the HTTP Server
+
+1. **Build both binaries:**
+   ```bash
+   cargo build --release
+   ```
+
+2. **Start the HTTP server:**
+   ```bash
+   ./target/release/mcp-http-server --port 3000 --host 0.0.0.0
+   ```
+
+   Or with custom MCP binary location:
+   ```bash
+   ./target/release/mcp-http-server \
+     --port 3000 \
+     --host 0.0.0.0 \
+     --mcp-binary ./target/release/mcp-server-wazuh
+   ```
+
+3. **Environment variables:** The HTTP server will pass all Wazuh configuration to the underlying MCP process, so ensure your `.env` file or environment variables are configured as described in the [Configuration](#configuration) section.
+
+### HTTP Endpoints
+
+- **Health Check:** `GET /health`
+  ```bash
+  curl http://localhost:3000/health
+  # Response: OK
+  ```
+
+- **MCP Endpoint:** `POST /mcp`
+
+  Accepts JSON-RPC 2.0 formatted MCP requests:
+
+  ```bash
+  # List available tools
+  curl -X POST http://localhost:3000/mcp \
+    -H "Content-Type: application/json" \
+    -d '{
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "tools/list",
+      "params": {}
+    }'
+
+  # Call a specific tool
+  curl -X POST http://localhost:3000/mcp \
+    -H "Content-Type: application/json" \
+    -d '{
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "get_wazuh_alert_summary",
+        "arguments": {
+          "limit": 10
+        }
+      }
+    }'
+  ```
+
+### HTTP Server Architecture
+
+The HTTP server (`mcp-http-server`) acts as a wrapper that:
+1. Launches the MCP server (`mcp-server-wazuh`) as a subprocess
+2. Exposes HTTP endpoints that accept JSON-RPC 2.0 requests
+3. Forwards requests to the MCP server's stdin
+4. Returns responses from the MCP server's stdout
+
+This architecture allows the MCP server to remain unchanged while providing HTTP accessibility for remote clients, web applications, or API integrations.
+
 ## Building
 
 ### Prerequisites

@@ -8,8 +8,16 @@ license = "MIT"
 repository = "https://github.com/gbrigandi/mcp-server-wazuh"
 readme = "README.md"
 
+[[bin]]
+name = "mcp-server-wazuh"
+path = "src/main.rs"
+
+[[bin]]
+name = "mcp-http-server"
+path = "src/bin/http-server.rs"
+
 [dependencies]
-wazuh-client = "0.1.7" 
+wazuh-client = "0.1.7"
 rmcp = { version = "0.1.5", features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
@@ -24,6 +32,10 @@ dotenv = "0.15"
 thiserror = "2.0"
 chrono = "0.4.41"
 openssl-sys = { version = "0.9", features = ["vendored"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+bytes = "1.0"
 
 [dev-dependencies]
 mockito = "1.7"

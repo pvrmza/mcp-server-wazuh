@@ -30,6 +30,50 @@ cargo run
 ./target/release/mcp-server-wazuh
 ```
 
+### HTTP Server Mode
+
+The project includes an HTTP wrapper server (`mcp-http-server`) that exposes the MCP server via HTTP endpoints:
+
+```bash
+# Build both binaries
+cargo build --release
+
+# Run HTTP server
+./target/release/mcp-http-server --port 3000 --host 0.0.0.0
+
+# With custom MCP binary location
+./target/release/mcp-http-server \
+  --port 3000 \
+  --host 0.0.0.0 \
+  --mcp-binary ./target/release/mcp-server-wazuh
+```
+
+**Available Endpoints:**
+- `GET /health` - Health check endpoint
+- `POST /mcp` - Main MCP endpoint accepting JSON-RPC 2.0 requests
+
+**Architecture:**
+- HTTP server spawns the stdio MCP server as a child process
+- Accepts HTTP POST requests with JSON-RPC 2.0 payloads
+- Forwards requests to MCP server's stdin
+- Returns responses from MCP server's stdout
+- Enables remote access and web application integration
+
+**Example HTTP Request:**
+```bash
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "get_wazuh_alert_summary",
+      "arguments": {"limit": 10}
+    }
+  }'
+```
+
 ### Testing
 ```bash
 # Run all tests (unit + integration)
@@ -200,6 +244,12 @@ All tests run without requiring a real Wazuh instance. The mock server (`tests/m
 - `anyhow` / `thiserror`: Error handling
 - `tracing` / `tracing-subscriber`: Structured logging
 
+### HTTP Server Dependencies
+- `axum` (0.7): Web framework for HTTP server
+- `tower`: Service middleware and utilities
+- `tower-http`: HTTP-specific middleware (CORS, tracing)
+- `bytes`: Byte buffer utilities
+
 ### Test Dependencies
 - `httpmock`: HTTP mock server for integration tests
 - `mockito`: Additional HTTP mocking
@@ -225,12 +275,20 @@ RUST_LOG=info,mcp_server_wazuh=debug,wazuh_client=info cargo run
 
 ## MCP Protocol Notes
 
-- **Transport**: Stdio only (JSON-RPC 2.0 over stdin/stdout)
+- **Transport**:
+  - **Stdio** (default): JSON-RPC 2.0 over stdin/stdout for local MCP clients
+  - **HTTP** (via wrapper): JSON-RPC 2.0 over HTTP POST for remote/web access
 - **Protocol Version**: `2024-11-05`
 - **Capabilities**: Tools, prompts, resources
 - **Tool Results**: Use `CallToolResult::success()` or `CallToolResult::error()` with `Content::text()` items
 
 The server implements the `ServerHandler` trait from `rmcp` and provides server info through the `get_info()` method.
+
+### Binary Targets
+
+The project provides two binary targets:
+1. **`mcp-server-wazuh`** (src/main.rs): Core MCP server with stdio transport
+2. **`mcp-http-server`** (src/bin/http-server.rs): HTTP wrapper server that launches the core MCP server as a subprocess
 
 ## Common Pitfalls
 
@@ -242,9 +300,19 @@ The server implements the `ServerHandler` trait from `rmcp` and provides server 
 
 ## Client Applications
 
-This server is designed to integrate with MCP-compatible clients like:
-- Claude Desktop (via `claude_desktop_config.json`)
-- IDE extensions supporting MCP
-- Custom automation tools using MCP protocol
+This server is designed to integrate with:
 
-Clients launch the server as a subprocess and communicate via stdio.
+### Stdio Clients
+- **Claude Desktop** (via `claude_desktop_config.json`)
+- **IDE extensions** supporting MCP
+- **Custom automation tools** using MCP protocol
+
+These clients launch the server as a subprocess and communicate via stdin/stdout.
+
+### HTTP Clients
+- **Web applications** making HTTP POST requests
+- **Remote MCP clients** accessing the server over network
+- **API integrations** using JSON-RPC 2.0 over HTTP
+- **Curl/Postman/HTTPie** for testing and development
+
+HTTP clients connect to `mcp-http-server` which proxies requests to the underlying MCP server.

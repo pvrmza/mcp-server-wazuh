@@ -57,52 +57,44 @@ Run the test script:
 Or manually test with curl:
 
 ```bash
-# Health check
+# 1. Health check
 curl http://localhost:3000/health
 
-# Initialize
+# 2. List available tools
+# Note: MCP initialization is automatic since v0.3.1
 curl -X POST http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2024-11-05",
-      "capabilities": {},
-      "clientInfo": {"name": "test", "version": "1.0"}
-    }
+    "method": "tools/list",
+    "params": {}
   }'
 
-# List tools
+# 3. Call a tool
 curl -X POST http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
     "id": 2,
-    "method": "tools/list",
-    "params": {}
-  }'
-
-# Call a tool
-curl -X POST http://localhost:3000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 3,
     "method": "tools/call",
     "params": {
       "name": "get_wazuh_agents",
-      "arguments": {"limit": 5}
+      "arguments": {
+        "status": "active",
+        "limit": 5
+      }
     }
   }'
 ```
+
+**Note:** Since version 0.3.1, the HTTP server automatically handles MCP protocol initialization (initialize request + initialized notification). You can directly call tools without manual initialization.
 
 ## Available Endpoints
 
 ### GET /health
 
-Health check endpoint. Returns "OK" if the server is running.
+Health check endpoint. Returns JSON indicating server status.
 
 **Example:**
 ```bash
@@ -110,8 +102,12 @@ curl http://localhost:3000/health
 ```
 
 **Response:**
-```
-OK
+```json
+{
+  "status": "healthy",
+  "service": "mcp-http-server",
+  "version": "0.3.0"
+}
 ```
 
 ### POST /mcp
@@ -187,10 +183,13 @@ Use the `tools/list` method to get the complete list with descriptions and param
 
 ## Features
 
+- **Automatic MCP Initialization**: The server automatically handles MCP protocol initialization (since v0.3.1)
+- **JSON-RPC 2.0 Compliant**: Full support for JSON-RPC 2.0 requests and notifications
 - **CORS Enabled**: The server has permissive CORS enabled for development
 - **Request Tracing**: All requests are logged with INFO level
 - **Error Handling**: Proper JSON-RPC error responses
 - **Process Management**: Automatically manages the MCP subprocess lifecycle
+- **Token Management**: Wazuh JWT tokens are automatically obtained and renewed
 - **Concurrent Requests**: Supports multiple concurrent requests via tokio async
 
 ## Security Considerations

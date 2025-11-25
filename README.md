@@ -75,26 +75,62 @@ For enhanced threat intelligence capabilities, the Wazuh MCP Server can be combi
 
 ## Requirements
 
--   An MCP (Model Context Protocol) compatible LLM client (e.g., Claude Desktop)
--   A running Wazuh server (v4.12 recommended) with the API enabled and accessible.
--   Network connectivity between this server and the Wazuh API (if API interaction is used).
+-   A running Wazuh server (v4.12 recommended) with the API enabled and accessible
+-   Network connectivity between this server and the Wazuh API
+-   **For stdio mode:** An MCP (Model Context Protocol) compatible LLM client (e.g., Claude Desktop)
+-   **For HTTP mode:** Any HTTP client or web application
+
+## Deployment Modes
+
+The server supports two deployment modes:
+
+1. **Stdio Mode** (Default): For local MCP clients like Claude Desktop
+   - Direct stdin/stdout communication
+   - Launched as a subprocess by MCP clients
+   - Best for desktop AI assistant integration
+
+2. **HTTP Mode** (New in v0.3.0): For remote access and web applications
+   - RESTful JSON-RPC 2.0 over HTTP
+   - Health check endpoint
+   - CORS enabled for web integration
+   - See [HTTP_SERVER.md](HTTP_SERVER.md) for details
 
 ## Installation
 
-### Option 1: Download Pre-built Binary (Recommended)
+### Option 1: Docker (Recommended for HTTP mode)
+
+Full Docker deployment with both stdio and HTTP modes:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/pvrmza/mcp-server-wazuh:latest
+
+# Clone repository for docker-compose
+git clone https://github.com/pvrmza/mcp-server-wazuh.git
+cd mcp-server-wazuh/docker
+
+# Configure environment
+cp .env.example .env
+nano .env  # Edit with your Wazuh credentials
+
+# Start HTTP server (recommended)
+docker compose up -d mcp-server-http
+
+# Test it works
+curl http://localhost:3000/health
+```
+
+See [docker/README.md](docker/README.md) for comprehensive Docker deployment guide.
+
+### Option 2: Download Pre-built Binary (For stdio mode)
 
 1.  **Download the Binary:**
-    *   Go to the [Releases page](https://github.com/gbrigandi/mcp-server-wazuh/releases) of the `mcp-server-wazuh` GitHub repository.
-    *   Download the appropriate binary for your operating system (e.g., `mcp-server-wazuh-linux-amd64`, `mcp-server-wazuh-macos-amd64`, `mcp-server-wazuh-windows-amd64.exe`).
-    *   Make the downloaded binary executable (e.g., `chmod +x mcp-server-wazuh-linux-amd64`).
-    *   (Optional) Rename it to something simpler like `mcp-server-wazuh` and move it to a directory in your system's `PATH` for easier access.
-
-### Option 2: Docker 
-
-1.  **Pull the Docker Image:**
-    ```bash
-    docker pull ghcr.io/gbrigandi/mcp-server-wazuh:latest
-    ```
+    *   Go to the [Releases page](https://github.com/pvrmza/mcp-server-wazuh/releases)
+    *   Download the appropriate binary for your operating system:
+        - `mcp-server-wazuh-linux-amd64` - Stdio MCP server
+        - `mcp-http-server-linux-amd64` - HTTP wrapper server
+    *   Make the downloaded binary executable: `chmod +x mcp-server-wazuh-*`
+    *   (Optional) Move to a directory in your `PATH` for easier access
 
 ### Option 3: Build from Source
 

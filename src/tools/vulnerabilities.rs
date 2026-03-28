@@ -4,7 +4,7 @@
 //! from the Wazuh Manager.
 
 use rmcp::{
-    Error as McpError,
+    ErrorData as McpError,
     model::{CallToolResult, Content},
     schemars,
 };
@@ -125,7 +125,7 @@ impl VulnerabilityTools {
                 params
                     .severity
                     .as_deref()
-                    .and_then(VulnerabilitySeverity::from_str),
+                    .and_then(VulnerabilitySeverity::parse),
             )
             .await;
 

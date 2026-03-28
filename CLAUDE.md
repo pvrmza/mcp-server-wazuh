@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust-based MCP (Model Context Protocol) server that bridges Wazuh SIEM (Security Information and Event Management) systems with AI assistants and automation tools. The server exposes Wazuh security data through MCP tools, enabling natural language interaction with security alerts, vulnerabilities, agent management, and compliance monitoring.
 
-The server communicates via stdio using JSON-RPC 2.0 and is built on the `rmcp` framework (v0.1.5) with the `wazuh-client` crate (v0.1.7) for Wazuh API interactions.
+The server communicates via stdio using JSON-RPC 2.0 and is built on the `rmcp` framework (v0.10) with the `wazuh-client` crate (v0.1.8) for Wazuh API interactions.
 
 ## Build and Development Commands
 
@@ -167,17 +167,17 @@ cp .env.example .env
 |----------|-------------|---------|
 | `WAZUH_API_HOST` | Wazuh Manager API hostname/IP | `localhost` |
 | `WAZUH_API_PORT` | Wazuh Manager API port | `55000` |
-| `WAZUH_API_USERNAME` | Wazuh Manager API username | `wazuh` |
-| `WAZUH_API_PASSWORD` | Wazuh Manager API password | `wazuh` |
+| `WAZUH_API_USERNAME` | Wazuh Manager API username | **(required)** |
+| `WAZUH_API_PASSWORD` | Wazuh Manager API password | **(required)** |
 | `WAZUH_INDEXER_HOST` | Wazuh Indexer hostname/IP | `localhost` |
 | `WAZUH_INDEXER_PORT` | Wazuh Indexer port | `9200` |
-| `WAZUH_INDEXER_USERNAME` | Wazuh Indexer username | `admin` |
-| `WAZUH_INDEXER_PASSWORD` | Wazuh Indexer password | `admin` |
-| `WAZUH_VERIFY_SSL` | Enable SSL certificate verification | `false` |
+| `WAZUH_INDEXER_USERNAME` | Wazuh Indexer username | **(required)** |
+| `WAZUH_INDEXER_PASSWORD` | Wazuh Indexer password | **(required)** |
+| `WAZUH_VERIFY_SSL` | Enable SSL certificate verification | `true` |
 | `WAZUH_TEST_PROTOCOL` | Protocol override (`http` or `https`) | `https` |
 | `RUST_LOG` | Logging level (`info`, `debug`, `trace`) | `info` |
 
-**Security Note**: For production, always set `WAZUH_VERIFY_SSL=true` with proper certificates.
+**Security Note**: `WAZUH_VERIFY_SSL` defaults to `true` (secure by default). All credential environment variables (`WAZUH_API_USERNAME`, `WAZUH_API_PASSWORD`, `WAZUH_INDEXER_USERNAME`, `WAZUH_INDEXER_PASSWORD`) are mandatory. The server will not start without properly configured credentials.
 
 ## Adding New MCP Tools
 
@@ -235,17 +235,17 @@ All tests run without requiring a real Wazuh instance. The mock server (`tests/m
 ## Dependencies
 
 ### Core Dependencies
-- `rmcp` (0.1.5): MCP server framework with stdio transport
-- `wazuh-client` (0.1.7): Wazuh API client library
+- `rmcp` (0.10): MCP server framework with stdio and HTTP transports
+- `wazuh-client` (0.1.8): Wazuh API client library
 - `tokio`: Async runtime with full features
 - `reqwest`: HTTP client with rustls-tls
 - `serde` / `serde_json`: Serialization
-- `schemars`: JSON Schema generation for MCP tool parameters
+- `schemars` (1.0): JSON Schema generation for MCP tool parameters
 - `anyhow` / `thiserror`: Error handling
 - `tracing` / `tracing-subscriber`: Structured logging
 
 ### HTTP Server Dependencies
-- `axum` (0.7): Web framework for HTTP server
+- `axum` (0.8, optional): Web framework for HTTP transport
 - `tower`: Service middleware and utilities
 - `tower-http`: HTTP-specific middleware (CORS, tracing)
 - `bytes`: Byte buffer utilities
@@ -254,6 +254,31 @@ All tests run without requiring a real Wazuh instance. The mock server (`tests/m
 - `httpmock`: HTTP mock server for integration tests
 - `mockito`: Additional HTTP mocking
 - `tokio-test`: Async test utilities
+
+## Recent Improvements (v0.3.0+)
+
+### Security Enhancements
+- **Secure by Default**: `WAZUH_VERIFY_SSL` now defaults to `true` (was `false`)
+- **Required Credentials**: All authentication variables are now mandatory with no default values:
+  - `WAZUH_API_USERNAME`, `WAZUH_API_PASSWORD` (no longer defaults to "wazuh")
+  - `WAZUH_INDEXER_USERNAME`, `WAZUH_INDEXER_PASSWORD` (no longer defaults to "admin")
+  - Server fails fast on startup if credentials are not configured
+
+### Flexible Parameter Types
+- MCP tools now accept both String and Number types for better client compatibility
+- Affected parameters: `agent_id`, `status`, `protocol`, `state`, `level`
+- Automatic type conversion handled by `deserialize_string_or_number` utility
+
+### Code Quality
+- Eliminated duplicate code across tool modules
+- Consolidated `deserialize_string_or_number` in `tools/mod.rs` (was duplicated 3x)
+- Consistent use of `ToolUtils::format_agent_id()` across all modules
+- Improved maintainability and consistency
+
+### Transport Layer
+- Upgraded to `rmcp` 0.10 with Streamable HTTP transport support
+- Optional HTTP mode via `--transport http` flag (requires `http` feature)
+- MCP protocol version: `2025-06-18`
 
 ## Logging
 
@@ -295,8 +320,10 @@ The project provides two binary targets:
 1. **Agent ID Format**: Always use `ToolUtils::format_agent_id()` before passing agent IDs to Wazuh clients
 2. **Arc<Mutex<>> Locking**: Remember to `.lock().await` when accessing shared Wazuh clients
 3. **Stdout Usage**: Never use stdout for logging or debugging; use `tracing::info!()` which logs to stderr
-4. **SSL Verification**: Development often uses `WAZUH_VERIFY_SSL=false`; remember to enable for production
-5. **Error Context**: Use `Self::format_error()` from `ToolModule` trait for consistent error messages
+4. **SSL Verification**: Defaults to `true` (secure). Only disable for development with self-signed certificates
+5. **Required Credentials**: Server will fail to start if `WAZUH_API_USERNAME`, `WAZUH_API_PASSWORD`, `WAZUH_INDEXER_USERNAME`, or `WAZUH_INDEXER_PASSWORD` are not set
+6. **Flexible Parameters**: MCP tools accept both String and Number types for parameters like `agent_id`, `status`, `protocol`, `state`, and `level` for better client compatibility
+7. **Error Context**: Use `Self::format_error()` from `ToolModule` trait for consistent error messages
 
 ## Client Applications
 

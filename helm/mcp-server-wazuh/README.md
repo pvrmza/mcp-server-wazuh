@@ -255,10 +255,10 @@ wazuh:
 ```bash
 # Create a regular secret
 kubectl create secret generic wazuh-credentials \
-  --from-literal=WAZUH_API_USERNAME=admin \
-  --from-literal=WAZUH_API_PASSWORD=SecurePass123 \
-  --from-literal=WAZUH_INDEXER_USERNAME=admin \
-  --from-literal=WAZUH_INDEXER_PASSWORD=SecurePass456 \
+  --from-literal=WAZUH_API_USERNAME=your_wazuh_user \
+  --from-literal=WAZUH_API_PASSWORD=your_secure_password \
+  --from-literal=WAZUH_INDEXER_USERNAME=your_indexer_user \
+  --from-literal=WAZUH_INDEXER_PASSWORD=your_indexer_password \
   --dry-run=client -o yaml > wazuh-secret.yaml
 
 # Seal it
@@ -280,10 +280,10 @@ existingSecret: "wazuh-credentials"
 ```bash
 # Create secret manually
 kubectl create secret generic wazuh-credentials \
-  --from-literal=WAZUH_API_USERNAME=admin \
-  --from-literal=WAZUH_API_PASSWORD=SecurePass123 \
-  --from-literal=WAZUH_INDEXER_USERNAME=admin \
-  --from-literal=WAZUH_INDEXER_PASSWORD=SecurePass456
+  --from-literal=WAZUH_API_USERNAME=your_wazuh_user \
+  --from-literal=WAZUH_API_PASSWORD=your_secure_password \
+  --from-literal=WAZUH_INDEXER_USERNAME=your_indexer_user \
+  --from-literal=WAZUH_INDEXER_PASSWORD=your_indexer_password
 ```
 
 Then install the chart:

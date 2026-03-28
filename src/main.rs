@@ -32,13 +32,13 @@
 // The server requires the following environment variables to connect to the Wazuh instance:
 // - `WAZUH_API_HOST`: Hostname or IP address of the Wazuh API.
 // - `WAZUH_API_PORT`: Port number for the Wazuh API (default: 55000).
-// - `WAZUH_API_USERNAME`: Username for Wazuh API authentication.
-// - `WAZUH_API_PASSWORD`: Password for Wazuh API authentication.
+// - `WAZUH_API_USERNAME`: Username for Wazuh API authentication (required - no default).
+// - `WAZUH_API_PASSWORD`: Password for Wazuh API authentication (required - no default).
 // - `WAZUH_INDEXER_HOST`: Hostname or IP address of the Wazuh Indexer.
 // - `WAZUH_INDEXER_PORT`: Port number for the Wazuh Indexer API (default: 9200).
-// - `WAZUH_INDEXER_USERNAME`: Username for Wazuh Indexer authentication.
-// - `WAZUH_INDEXER_PASSWORD`: Password for Wazuh Indexer authentication.
-// - `WAZUH_VERIFY_SSL`: Set to "true" to enable SSL certificate verification, "false" otherwise (default: false).
+// - `WAZUH_INDEXER_USERNAME`: Username for Wazuh Indexer authentication (required - no default).
+// - `WAZUH_INDEXER_PASSWORD`: Password for Wazuh Indexer authentication (required - no default).
+// - `WAZUH_VERIFY_SSL`: Set to "true" to enable SSL certificate verification, "false" otherwise (default: true).
 // - `WAZUH_TEST_PROTOCOL`: (Optional) Protocol to use for Wazuh API/Indexer connections, e.g., "http" or "https" (default: "https").
 // Logging behavior is controlled by the `RUST_LOG` environment variable (e.g., `RUST_LOG=info,mcp_server_wazuh=debug`).
 

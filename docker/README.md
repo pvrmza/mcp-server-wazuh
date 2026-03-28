@@ -41,11 +41,11 @@ WAZUH_API_PASSWORD=your-password
 # Wazuh Indexer API
 WAZUH_INDEXER_HOST=your-wazuh-indexer-host
 WAZUH_INDEXER_PORT=9200
-WAZUH_INDEXER_USERNAME=admin
-WAZUH_INDEXER_PASSWORD=admin
+WAZUH_INDEXER_USERNAME=your-indexer-username
+WAZUH_INDEXER_PASSWORD=your-indexer-password
 
-# SSL Configuration (set to true for production)
-WAZUH_VERIFY_SSL=false
+# SSL Configuration (defaults to true, set to false only for dev with self-signed certs)
+WAZUH_VERIFY_SSL=true
 
 # Logging
 RUST_LOG=info

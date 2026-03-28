@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- **BREAKING CHANGE**: Credentials now required with no defaults
+  - `WAZUH_API_USERNAME`, `WAZUH_API_PASSWORD` must be explicitly configured
+  - `WAZUH_INDEXER_USERNAME`, `WAZUH_INDEXER_PASSWORD` must be explicitly configured
+  - Server will fail to start if credentials are missing
+  - **Migration Required**: Update your `.env` or environment configuration with actual credential values
+- **Changed default**: `WAZUH_VERIFY_SSL` now defaults to `true` (was `false`)
+  - Secure by default - production-ready SSL verification enabled out of the box
+  - Only disable for development environments with self-signed certificates
+  - **Migration Note**: If using self-signed certificates in development, explicitly set `WAZUH_VERIFY_SSL=false`
+
+### Added
+- **Flexible parameter types**: MCP tools now accept both String and Number for IDs and enum parameters
+  - Improved compatibility with MCP clients that may convert parameter types automatically
+  - Affected parameters: `agent_id`, `status`, `protocol`, `state`, `level`
+  - Seamless type conversion using `deserialize_string_or_number` utility
+  - Example: `agent_id` can be sent as `"001"` (string) or `1` (number) - both work
+
+### Changed
+- **Code refactoring**: Eliminated duplicate code across tool modules
+  - Moved `deserialize_string_or_number` to `tools/mod.rs` (was duplicated in 3 files)
+  - Consolidated `format_agent_id` usage in vulnerabilities module
+  - Improved maintainability and reduced code complexity
+  - No functional changes - internal refactoring only
+
+### Dependencies
+- **Upgraded `rmcp`** from 0.1.5 to 0.10
+  - Adds support for Streamable HTTP transport with Server-Sent Events (SSE)
+  - Updated to MCP protocol version `2025-06-18`
+  - Enhanced session management capabilities
+- **Upgraded `wazuh-client`** from 0.1.7 to 0.1.8
+  - Improved unmarshaling for indexer responses
+  - Fixed ordering issues in API responses
+- **Upgraded `schemars`** from 0.8 to 1.0
+  - Latest JSON Schema generation support
+- **Added `axum`** 0.8 (optional, requires `http` feature)
+  - Enables HTTP transport mode for remote server deployment
+
+### Migration Guide
+
+#### For Existing Users
+
+**⚠️ Action Required - Breaking Changes:**
+
+1. **Update Credentials** (Required):
+   ```bash
+   # In your .env file or environment:
+   WAZUH_API_USERNAME=your_actual_username      # No default anymore
+   WAZUH_API_PASSWORD=your_actual_password      # No default anymore
+   WAZUH_INDEXER_USERNAME=your_actual_username  # No default anymore
+   WAZUH_INDEXER_PASSWORD=your_actual_password  # No default anymore
+   ```
+
+2. **Review SSL Configuration** (Recommended):
+   ```bash
+   # Default is now true (secure)
+   WAZUH_VERIFY_SSL=true
+
+   # Only for development with self-signed certificates:
+   WAZUH_VERIFY_SSL=false
+   ```
+
+3. **Test Before Deploying**:
+   ```bash
+   # Verify server starts with new configuration
+   cargo run
+   # Should fail if credentials are not set (expected behavior)
+   ```
+
+#### Compatibility Notes
+
+- **No code changes required** for existing integrations
+- **Configuration changes required** for environment variables
+- Parameter flexibility improves compatibility with diverse MCP clients
+- Recommended to update to latest `.env.example` as reference
+
 ## [0.3.1] - 2025-11-24
 
 ### Fixed

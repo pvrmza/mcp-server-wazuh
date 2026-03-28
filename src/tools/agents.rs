@@ -5,35 +5,13 @@
 //! - Agent process monitoring
 //! - Agent network port monitoring
 
-use super::{ToolModule, ToolUtils};
+use super::{ToolModule, ToolUtils, deserialize_string_or_number};
 use reqwest::StatusCode;
 use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wazuh_client::{AgentsClient, Port as WazuhPort, VulnerabilityClient};
-
-/// Custom deserializer that accepts both String and Number
-fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum StringOrNumber {
-        String(String),
-        Number(i64),
-        Float(f64),
-    }
-
-    match StringOrNumber::deserialize(deserializer)? {
-        StringOrNumber::String(s) => Ok(s),
-        StringOrNumber::Number(n) => Ok(n.to_string()),
-        StringOrNumber::Float(f) => Ok(f.to_string()),
-    }
-}
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetAgentsParams {

@@ -11,29 +11,7 @@ use rmcp::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wazuh_client::{VulnerabilityClient, VulnerabilitySeverity};
-use super::ToolModule;
-
-/// Custom deserializer that accepts both String and Number
-fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum StringOrNumber {
-        String(String),
-        Number(i64),
-        Float(f64),
-    }
-
-    match StringOrNumber::deserialize(deserializer)? {
-        StringOrNumber::String(s) => Ok(s),
-        StringOrNumber::Number(n) => Ok(n.to_string()),
-        StringOrNumber::Float(f) => Ok(f.to_string()),
-    }
-}
+use super::{ToolModule, ToolUtils, deserialize_string_or_number};
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetVulnerabilitiesSummaryParams {
@@ -67,28 +45,6 @@ impl VulnerabilityTools {
         Self { vulnerability_client }
     }
 
-    fn format_agent_id(agent_id_str: &str) -> Result<String, String> {
-        // Attempt to parse as a number first
-        if let Ok(num) = agent_id_str.parse::<u32>() {
-            if num > 999 {
-                Err(format!(
-                    "Agent ID '{}' is too large. Must be a number between 0 and 999.",
-                    agent_id_str
-                ))
-            } else {
-                Ok(format!("{:03}", num))
-            }
-        } else if agent_id_str.len() == 3 && agent_id_str.chars().all(|c| c.is_ascii_digit()) {
-            // Already correctly formatted (e.g., "001")
-            Ok(agent_id_str.to_string())
-        } else {
-            Err(format!(
-                "Invalid agent_id format: '{}'. Must be a number (e.g., 1, 12) or a 3-digit string (e.g., 001, 012).",
-                agent_id_str
-            ))
-        }
-    }
-
     pub async fn get_wazuh_vulnerability_summary(
         &self,
         params: GetVulnerabilitiesSummaryParams,
@@ -96,7 +52,7 @@ impl VulnerabilityTools {
         let limit = params.limit.unwrap_or(10000);
         let offset = 0; // Default offset, can be extended in future if needed
 
-        let agent_id = match Self::format_agent_id(&params.agent_id) {
+        let agent_id = match ToolUtils::format_agent_id(&params.agent_id) {
             Ok(formatted_id) => formatted_id,
             Err(err_msg) => {
                 tracing::error!(
@@ -270,7 +226,7 @@ impl VulnerabilityTools {
         params: GetCriticalVulnerabilitiesParams,
     ) -> Result<CallToolResult, McpError> {
         let limit = params.limit.unwrap_or(300);
-        let agent_id = match Self::format_agent_id(&params.agent_id) {
+        let agent_id = match ToolUtils::format_agent_id(&params.agent_id) {
             Ok(formatted_id) => formatted_id,
             Err(err_msg) => {
                 tracing::error!(

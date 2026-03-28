@@ -12,6 +12,28 @@ pub mod vulnerabilities;
 use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
 
+/// Custom deserializer that accepts both String and Number
+pub fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(i64),
+        Float(f64),
+    }
+
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(s) => Ok(s),
+        StringOrNumber::Number(n) => Ok(n.to_string()),
+        StringOrNumber::Float(f) => Ok(f.to_string()),
+    }
+}
+
 pub trait ToolModule {
     fn format_error(component: &str, operation: &str, error: &dyn std::fmt::Display) -> String {
         format!("Error {} from Wazuh {}: {}", operation, component, error)

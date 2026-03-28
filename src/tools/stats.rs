@@ -3,35 +3,13 @@
 //! This module contains tools for retrieving various statistics from Wazuh components,
 //! including manager logs, remoted daemon stats, log collector stats, and weekly statistics.
 
-use super::{ToolModule, ToolUtils};
+use super::{ToolModule, ToolUtils, deserialize_string_or_number};
 use reqwest::StatusCode;
 use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wazuh_client::{ClusterClient, LogsClient};
-
-/// Custom deserializer that accepts both String and Number for level field
-fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum StringOrNumber {
-        String(String),
-        Number(i64),
-        Float(f64),
-    }
-
-    match StringOrNumber::deserialize(deserializer)? {
-        StringOrNumber::String(s) => Ok(s),
-        StringOrNumber::Number(n) => Ok(n.to_string()),
-        StringOrNumber::Float(f) => Ok(f.to_string()),
-    }
-}
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct SearchManagerLogsParams {

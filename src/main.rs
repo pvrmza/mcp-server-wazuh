@@ -109,8 +109,10 @@ impl WazuhToolsServer {
             .unwrap_or_else(|_| "55000".to_string())
             .parse()
             .unwrap_or(55000);
-        let api_username = env::var("WAZUH_API_USERNAME").unwrap_or_else(|_| "wazuh".to_string());
-        let api_password = env::var("WAZUH_API_PASSWORD").unwrap_or_else(|_| "wazuh".to_string());
+        let api_username = env::var("WAZUH_API_USERNAME")
+            .map_err(|_| anyhow::anyhow!("WAZUH_API_USERNAME must be configured"))?;
+        let api_password = env::var("WAZUH_API_PASSWORD")
+            .map_err(|_| anyhow::anyhow!("WAZUH_API_PASSWORD must be configured"))?;
 
         let indexer_host =
             env::var("WAZUH_INDEXER_HOST").unwrap_or_else(|_| "localhost".to_string());
@@ -119,14 +121,16 @@ impl WazuhToolsServer {
             .parse()
             .unwrap_or(9200);
         let indexer_username =
-            env::var("WAZUH_INDEXER_USERNAME").unwrap_or_else(|_| "admin".to_string());
+            env::var("WAZUH_INDEXER_USERNAME")
+                .map_err(|_| anyhow::anyhow!("WAZUH_INDEXER_USERNAME must be configured"))?;
         let indexer_password =
-            env::var("WAZUH_INDEXER_PASSWORD").unwrap_or_else(|_| "admin".to_string());
+            env::var("WAZUH_INDEXER_PASSWORD")
+                .map_err(|_| anyhow::anyhow!("WAZUH_INDEXER_PASSWORD must be configured"))?;
 
         let verify_ssl = env::var("WAZUH_VERIFY_SSL")
-            .unwrap_or_else(|_| "false".to_string())
+            .unwrap_or_else(|_| "true".to_string())
             .parse()
-            .unwrap_or(false);
+            .unwrap_or(true);
 
         let test_protocol = env::var("WAZUH_TEST_PROTOCOL")
             .ok()

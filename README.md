@@ -57,7 +57,13 @@ The Wazuh MCP Server provides direct access to Wazuh security data through natur
 
 ### Threat Intelligence Gathering and Response
 
-For enhanced threat intelligence capabilities, the Wazuh MCP Server can be combined with the **[Cortex MCP Server](https://github.com/gbrigandi/mcp-server-cortex/)** to create a powerful security analysis ecosystem.
+For enhanced threat intelligence and incident response capabilities, the Wazuh MCP Server can be combined with complementary security MCP servers:
+
+| Server | Description |
+|--------|-------------|
+| **[Cortex MCP Server](https://github.com/gbrigandi/mcp-server-cortex/)** | Artifact analysis and IOC enrichment via 140+ analyzers |
+| **[TheHive MCP Server](https://github.com/gbrigandi/mcp-server-thehive/)** | Case management and incident response orchestration |
+| **[MISP MCP Server](https://github.com/gbrigandi/mcp-server-misp/)** | Threat intelligence sharing and IOC lookup |
 
 **Enhanced Capabilities with Cortex Integration:**
 *   **Artifact Analysis:** Automatically analyze suspicious files, URLs, domains, and IP addresses found in Wazuh alerts using Cortex's 140+ analyzers
@@ -66,71 +72,51 @@ For enhanced threat intelligence capabilities, the Wazuh MCP Server can be combi
 *   **Multi-Source Intelligence:** Leverage analyzers for reputation checks, malware analysis, domain analysis, and behavioral analysis
 *   **Response Orchestration:** Use analysis results to inform automated response actions and alert prioritization
 
+**Enhanced Capabilities with TheHive Integration:**
+*   **Case Creation:** Automatically create cases in TheHive from Wazuh alerts for structured incident tracking
+*   **Alert Correlation:** Link related Wazuh alerts to existing cases for comprehensive incident timelines
+*   **Task Management:** Create and track investigation tasks based on alert severity and type
+*   **Observable Management:** Extract and manage IOCs as observables within case investigations
+*   **Collaboration:** Enable security team collaboration on incidents detected by Wazuh
+
+**Enhanced Capabilities with MISP Integration:**
+*   **IOC Lookup:** Check if indicators from Wazuh alerts are known in your threat intelligence database
+*   **Threat Context:** Retrieve event context, threat actor attribution, and MITRE ATT&CK mappings for IOCs
+*   **False Positive Reduction:** Validate IOCs against MISP warninglists to reduce false positives
+*   **Sighting Tracking:** Record and query sighting history to assess IOC prevalence
+*   **Galaxy Exploration:** Access threat actor profiles, malware families, and attack patterns
+
 **Example Workflow:**
 1. Wazuh detects a suspicious file hash or network connection in an alert
-2. The AI assistant automatically queries the Cortex MCP Server to analyze the artifact using multiple analyzers
-3. Results from VirusTotal, hybrid analysis, domain reputation, and other sources are correlated
-4. The combined intelligence provides context for incident response decisions
-5. Findings can be used to update Wazuh rules or trigger additional monitoring
+2. The AI assistant queries the MISP MCP Server to check if the IOC is known in threat intelligence
+3. If unknown, the Cortex MCP Server analyzes the artifact using multiple analyzers
+4. Results from VirusTotal, hybrid analysis, domain reputation, and other sources are correlated
+5. A case is created in TheHive via the TheHive MCP Server to track the investigation
+6. The combined intelligence provides context for incident response decisions
+7. Findings can be used to update Wazuh rules or trigger additional monitoring
 
 ## Requirements
 
--   A running Wazuh server (v4.12 recommended) with the API enabled and accessible
--   Network connectivity between this server and the Wazuh API
--   **For stdio mode:** An MCP (Model Context Protocol) compatible LLM client (e.g., Claude Desktop)
--   **For HTTP mode:** Any HTTP client or web application
-
-## Deployment Modes
-
-The server supports two deployment modes:
-
-1. **Stdio Mode** (Default): For local MCP clients like Claude Desktop
-   - Direct stdin/stdout communication
-   - Launched as a subprocess by MCP clients
-   - Best for desktop AI assistant integration
-
-2. **HTTP Mode** (New in v0.3.0): For remote access and web applications
-   - RESTful JSON-RPC 2.0 over HTTP
-   - Health check endpoint
-   - CORS enabled for web integration
-   - See [HTTP_SERVER.md](HTTP_SERVER.md) for details
+-   An MCP (Model Context Protocol) compatible LLM client (e.g., Claude Desktop)
+-   A running Wazuh server (v4.12 recommended) with the API enabled and accessible.
+-   Network connectivity between this server and the Wazuh API (if API interaction is used).
 
 ## Installation
 
-### Option 1: Docker (Recommended for HTTP mode)
-
-Full Docker deployment with both stdio and HTTP modes:
-
-```bash
-# Pull the latest image
-docker pull ghcr.io/pvrmza/mcp-server-wazuh:latest
-
-# Clone repository for docker-compose
-git clone https://github.com/pvrmza/mcp-server-wazuh.git
-cd mcp-server-wazuh/docker
-
-# Configure environment
-cp .env.example .env
-nano .env  # Edit with your Wazuh credentials
-
-# Start HTTP server (recommended)
-docker compose up -d mcp-server-http
-
-# Test it works
-curl http://localhost:3000/health
-```
-
-See [docker/README.md](docker/README.md) for comprehensive Docker deployment guide.
-
-### Option 2: Download Pre-built Binary (For stdio mode)
+### Option 1: Download Pre-built Binary (Recommended)
 
 1.  **Download the Binary:**
-    *   Go to the [Releases page](https://github.com/pvrmza/mcp-server-wazuh/releases)
-    *   Download the appropriate binary for your operating system:
-        - `mcp-server-wazuh-linux-amd64` - Stdio MCP server
-        - `mcp-http-server-linux-amd64` - HTTP wrapper server
-    *   Make the downloaded binary executable: `chmod +x mcp-server-wazuh-*`
-    *   (Optional) Move to a directory in your `PATH` for easier access
+    *   Go to the [Releases page](https://github.com/gbrigandi/mcp-server-wazuh/releases) of the `mcp-server-wazuh` GitHub repository.
+    *   Download the appropriate binary for your operating system (e.g., `mcp-server-wazuh-linux-amd64`, `mcp-server-wazuh-macos-amd64`, `mcp-server-wazuh-macos-arm64`, `mcp-server-wazuh-windows-amd64.exe`).
+    *   Make the downloaded binary executable (e.g., `chmod +x mcp-server-wazuh-linux-amd64`).
+    *   (Optional) Rename it to something simpler like `mcp-server-wazuh` and move it to a directory in your system's `PATH` for easier access.
+
+### Option 2: Docker 
+
+1.  **Pull the Docker Image:**
+    ```bash
+    docker pull ghcr.io/gbrigandi/mcp-server-wazuh:latest
+    ```
 
 ### Option 3: Build from Source
 
@@ -141,7 +127,12 @@ See [docker/README.md](docker/README.md) for comprehensive Docker deployment gui
     ```bash
     git clone https://github.com/gbrigandi/mcp-server-wazuh.git
     cd mcp-server-wazuh
+
+    # Build with stdio transport only (default)
     cargo build --release
+
+    # Build with HTTP transport support
+    cargo build --release --features http
     ```
     The binary will be available at `target/release/mcp-server-wazuh`.
 
@@ -235,81 +226,6 @@ Configuration is managed through environment variables. A `.env` file can be pla
 **Note on `WAZUH_VERIFY_SSL`:** For production environments, it is strongly recommended to set `WAZUH_VERIFY_SSL=true` and ensure proper certificate validation for both Wazuh Manager API and Wazuh Indexer connections. Setting it to `false` disables certificate checks, which is insecure.
 The "Required: Yes" indicates that these variables are essential for the server to connect to the respective Wazuh components. While defaults are provided, they are unlikely to match a production or non-local setup.
 
-## HTTP Server Mode
-
-In addition to the standard stdio transport for MCP clients, the server can be run as an HTTP service for remote access or integration with web applications.
-
-### Starting the HTTP Server
-
-1. **Build both binaries:**
-   ```bash
-   cargo build --release
-   ```
-
-2. **Start the HTTP server:**
-   ```bash
-   ./target/release/mcp-http-server --port 3000 --host 0.0.0.0
-   ```
-
-   Or with custom MCP binary location:
-   ```bash
-   ./target/release/mcp-http-server \
-     --port 3000 \
-     --host 0.0.0.0 \
-     --mcp-binary ./target/release/mcp-server-wazuh
-   ```
-
-3. **Environment variables:** The HTTP server will pass all Wazuh configuration to the underlying MCP process, so ensure your `.env` file or environment variables are configured as described in the [Configuration](#configuration) section.
-
-### HTTP Endpoints
-
-- **Health Check:** `GET /health`
-  ```bash
-  curl http://localhost:3000/health
-  # Response: OK
-  ```
-
-- **MCP Endpoint:** `POST /mcp`
-
-  Accepts JSON-RPC 2.0 formatted MCP requests:
-
-  ```bash
-  # List available tools
-  curl -X POST http://localhost:3000/mcp \
-    -H "Content-Type: application/json" \
-    -d '{
-      "jsonrpc": "2.0",
-      "id": 1,
-      "method": "tools/list",
-      "params": {}
-    }'
-
-  # Call a specific tool
-  curl -X POST http://localhost:3000/mcp \
-    -H "Content-Type: application/json" \
-    -d '{
-      "jsonrpc": "2.0",
-      "id": 2,
-      "method": "tools/call",
-      "params": {
-        "name": "get_wazuh_alert_summary",
-        "arguments": {
-          "limit": 10
-        }
-      }
-    }'
-  ```
-
-### HTTP Server Architecture
-
-The HTTP server (`mcp-http-server`) acts as a wrapper that:
-1. Launches the MCP server (`mcp-server-wazuh`) as a subprocess
-2. Exposes HTTP endpoints that accept JSON-RPC 2.0 requests
-3. Forwards requests to the MCP server's stdin
-4. Returns responses from the MCP server's stdout
-
-This architecture allows the MCP server to remain unchanged while providing HTTP accessibility for remote clients, web applications, or API integrations.
-
 ## Building
 
 ### Prerequisites
@@ -329,18 +245,72 @@ This architecture allows the MCP server to remain unchanged while providing HTTP
     -   Edit the `.env` file with your specific Wazuh API details (e.g. `WAZUH_API_HOST`, `WAZUH_API_PORT`).
 3.  **Build:**
     ```bash
+    # Build with default features (stdio transport only)
     cargo build
+
+    # Build with HTTP transport support
+    cargo build --features http
     ```
 4.  **Run:**
     ```bash
+    # Run with stdio transport (default)
     cargo run
+
+    # Run with HTTP transport (requires --features http during build)
+    cargo run --features http -- --transport http
+
     # Or use the run script (which might set up stdio mode):
     # ./run.sh
     ```
 
+## Transport Modes
+
+The Wazuh MCP Server supports two transport modes for communication with MCP clients:
+
+### stdio Transport (Default)
+
+The stdio transport is the default mode, ideal for local integrations where the MCP client launches the server as a child process. Communication occurs via stdin/stdout using JSON-RPC 2.0 messages.
+
+```bash
+# Run with stdio transport (default)
+mcp-server-wazuh
+
+# Explicit stdio transport
+mcp-server-wazuh --transport stdio
+```
+
+### Streamable HTTP Transport
+
+The HTTP transport enables remote server deployment, allowing MCP clients to connect over the network. This mode implements the MCP Streamable HTTP specification with Server-Sent Events (SSE) support.
+
+```bash
+# Run with HTTP transport on default address (127.0.0.1:8080)
+mcp-server-wazuh --transport http
+
+# Run with custom host and port
+mcp-server-wazuh --transport http --host 0.0.0.0 --port 3000
+```
+
+**HTTP Transport Features:**
+- Single `/mcp` endpoint for all MCP communication
+- POST requests with JSON-RPC messages
+- Server-Sent Events (SSE) for streaming responses
+- Session management with `MCP-Session-Id` header
+- Protocol version: `2025-06-18` (MCP spec supported by rmcp 0.10)
+
+**Security Note:** By default, HTTP transport binds to `127.0.0.1` (localhost only). When binding to `0.0.0.0` for remote access, ensure proper network security measures (firewall rules, reverse proxy with TLS, etc.) are in place.
+
+### CLI Arguments
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--transport` | Transport mode: `stdio` or `http` | `stdio` |
+| `--host` | HTTP server bind address (only for http transport) | `127.0.0.1` |
+| `--port` | HTTP server port (only for http transport) | `8080` |
+
 ## Architecture
 
-The server is built using the [rmcp](https://crates.io/crates/rmcp) framework and facilitates communication between MCP clients (e.g., Claude Desktop, IDE extensions) and the Wazuh MCP Server via stdio transport. The server interacts with the Wazuh Indexer and Wazuh Manager APIs to fetch security alerts and other data.
+The server is built using the [rmcp](https://crates.io/crates/rmcp) framework (v0.10+) and facilitates communication between MCP clients (e.g., Claude Desktop, IDE extensions) and the Wazuh MCP Server. The server supports both stdio and Streamable HTTP transports and interacts with the Wazuh Indexer and Wazuh Manager APIs to fetch security alerts and other data.
 
 ```mermaid
 sequenceDiagram
@@ -358,7 +328,7 @@ sequenceDiagram
     
     ClientApp->>+WazuhMCPServer: (stdio) MCP Request (tools/call for wazuhAlerts)
     WazuhMCPServer->>WazuhMCPServer: Parse MCP Request
-    WazuhMCPServer->>+WazuhAPI: Request Wazuh Alerts (with WAZUH_USER, WAZUH_PASS)
+    WazuhMCPServer->>+WazuhAPI: Request Wazuh Alerts (with WAZUH_API_USERNAME, WAZUH_API_PASSWORD)
     WazuhAPI-->>-WazuhMCPServer: Wazuh Alert Data (JSON)
     WazuhMCPServer->>WazuhMCPServer: Transform Wazuh Alerts to MCP Format
     WazuhMCPServer-->>-ClientApp: (stdout) MCP Response (alerts)
@@ -372,9 +342,9 @@ sequenceDiagram
 4.  **Processing:**
     *   The server parses the MCP command.
     *   If the command requires fetching data from Wazuh (e.g., "get latest alerts"):
-        *   The server connects to the Wazuh API (authenticating if necessary using configured credentials like `WAZUH_USER`, `WAZUH_PASS`).
+        *   The server connects to the Wazuh API (authenticating if necessary using configured credentials like `WAZUH_API_USERNAME`, `WAZUH_API_PASSWORD`).
         *   It fetches the required data (e.g., security alerts).
-        *   The server's transformation logic (`src/mcp/transform.rs`) processes each alert, mapping Wazuh fields to MCP fields.
+        *   The server's transformation logic processes each alert, mapping Wazuh fields to MCP format.
     *   If the command is internal (e.g., a status check specific to the MCP server), it processes it directly.
 5.  The server sends an MCP-formatted JSON response (e.g., transformed alerts, command acknowledgment, or error messages) to the application via its `stdout`.
 6.  The application reads and processes the MCP response from the server's `stdout`.
@@ -395,7 +365,7 @@ Example interaction flow:
       "id": 0,
       "method": "initialize",
       "params": {
-        "protocolVersion": "2024-11-05",
+        "protocolVersion": "2025-06-18",
         "capabilities": {
           "sampling": {},
           "roots": { "listChanged": true }
@@ -414,15 +384,15 @@ Example interaction flow:
       "jsonrpc": "2.0",
       "id": 1,
       "result": {
-        "protocolVersion": "2024-11-05",
+        "protocolVersion": "2025-06-18",
         "capabilities": {
           "prompts": {},
           "resources": {},
           "tools": {}
         },
         "serverInfo": {
-          "name": "rmcp",
-          "version": "0.1.5"
+          "name": "mcp-server-wazuh",
+          "version": "0.3.0"
         },
         "instructions": "This server provides tools to interact with a Wazuh SIEM instance for security monitoring and analysis.\nAvailable tools:\n- 'get_wazuh_alert_summary': Retrieves a summary of Wazuh security alerts. Optionally takes 'limit' parameter to control the number of alerts returned (defaults to 100)."
       }

@@ -159,7 +159,7 @@ Configure your `claude_desktop_config.json` file:
         "WAZUH_INDEXER_PORT": "9200",
         "WAZUH_INDEXER_USERNAME": "your_wazuh_indexer_user",
         "WAZUH_INDEXER_PASSWORD": "your_wazuh_indexer_password",
-        "WAZUH_VERIFY_SSL": "false",
+        "WAZUH_VERIFY_SSL": "true",
         "WAZUH_TEST_PROTOCOL": "https",
         "RUST_LOG": "info"
       }
@@ -183,7 +183,7 @@ WAZUH_INDEXER_HOST=your_wazuh_indexer_host
 WAZUH_INDEXER_PORT=9200
 WAZUH_INDEXER_USERNAME=your_wazuh_indexer_user
 WAZUH_INDEXER_PASSWORD=your_wazuh_indexer_password
-WAZUH_VERIFY_SSL=false
+WAZUH_VERIFY_SSL=true
 WAZUH_TEST_PROTOCOL=https
 RUST_LOG=info
 ```
@@ -213,18 +213,19 @@ Configuration is managed through environment variables. A `.env` file can be pla
 | ------------------------ | ------------------------------------------------------------------------------ | ----------- | -------- |
 | `WAZUH_API_HOST`         | Hostname or IP address of the Wazuh Manager API server.                        | `localhost` | Yes      |
 | `WAZUH_API_PORT`         | Port number for the Wazuh Manager API.                                         | `55000`     | Yes      |
-| `WAZUH_API_USERNAME`     | Username for Wazuh Manager API authentication.                                 | `wazuh`     | Yes      |
-| `WAZUH_API_PASSWORD`     | Password for Wazuh Manager API authentication.                                 | `wazuh`     | Yes      |
+| `WAZUH_API_USERNAME`     | Username for Wazuh Manager API authentication.                                 | -           | **Yes**  |
+| `WAZUH_API_PASSWORD`     | Password for Wazuh Manager API authentication.                                 | -           | **Yes**  |
 | `WAZUH_INDEXER_HOST`     | Hostname or IP address of the Wazuh Indexer API server.                        | `localhost` | Yes      |
 | `WAZUH_INDEXER_PORT`     | Port number for the Wazuh Indexer API.                                         | `9200`      | Yes      |
-| `WAZUH_INDEXER_USERNAME` | Username for Wazuh Indexer API authentication.                                 | `admin`     | Yes      |
-| `WAZUH_INDEXER_PASSWORD` | Password for Wazuh Indexer API authentication.                                 | `admin`     | Yes      |
-| `WAZUH_VERIFY_SSL`       | Set to `true` to verify SSL certificates for Wazuh API and Indexer connections.  | `false`     | No       |
+| `WAZUH_INDEXER_USERNAME` | Username for Wazuh Indexer API authentication.                                 | -           | **Yes**  |
+| `WAZUH_INDEXER_PASSWORD` | Password for Wazuh Indexer API authentication.                                 | -           | **Yes**  |
+| `WAZUH_VERIFY_SSL`       | Set to `true` to verify SSL certificates for Wazuh API and Indexer connections.  | `true`      | No       |
 | `WAZUH_TEST_PROTOCOL`    | Protocol for Wazuh connections (e.g., "http", "https"). Overrides client default. | `https`     | No       |
 | `RUST_LOG`               | Log level (e.g., `info`, `debug`, `trace`).                                    | `info`      | No       |
 
-**Note on `WAZUH_VERIFY_SSL`:** For production environments, it is strongly recommended to set `WAZUH_VERIFY_SSL=true` and ensure proper certificate validation for both Wazuh Manager API and Wazuh Indexer connections. Setting it to `false` disables certificate checks, which is insecure.
-The "Required: Yes" indicates that these variables are essential for the server to connect to the respective Wazuh components. While defaults are provided, they are unlikely to match a production or non-local setup.
+**⚠️ Security Notice:** All authentication variables (`WAZUH_API_USERNAME`, `WAZUH_API_PASSWORD`, `WAZUH_INDEXER_USERNAME`, `WAZUH_INDEXER_PASSWORD`) are **required** and have **no defaults** for security reasons. The server will fail to start if these are not configured.
+
+**Note on `WAZUH_VERIFY_SSL`:** Default is `true` (recommended for production). Set to `false` only for development/testing with self-signed certificates.
 
 ## Building
 
@@ -432,7 +433,7 @@ Example interaction flow:
               "$schema": "http://json-schema.org/draft-07/schema#",
               "properties": {
                 "limit": {
-                  "description": "Maximum number of alerts to retrieve (default: 100)",
+                  "description": "Maximum number of alerts to retrieve (default: 300)",
                   "format": "uint32",
                   "minimum": 0.0,
                   "type": ["integer", "null"]

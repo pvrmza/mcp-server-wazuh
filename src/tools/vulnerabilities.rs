@@ -1,5 +1,5 @@
 //! Wazuh Manager vulnerability tools
-//! 
+//!
 //! This module contains tools for retrieving and analyzing vulnerability information
 //! from the Wazuh Manager.
 
@@ -13,11 +13,34 @@ use tokio::sync::Mutex;
 use wazuh_client::{VulnerabilityClient, VulnerabilitySeverity};
 use super::ToolModule;
 
+/// Custom deserializer that accepts both String and Number
+fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(i64),
+        Float(f64),
+    }
+
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(s) => Ok(s),
+        StringOrNumber::Number(n) => Ok(n.to_string()),
+        StringOrNumber::Float(f) => Ok(f.to_string()),
+    }
+}
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetVulnerabilitiesSummaryParams {
     #[schemars(description = "Maximum number of vulnerabilities to retrieve (default: 10000)")]
     pub limit: Option<u32>,
-    #[schemars(description = "Agent ID to filter vulnerabilities by (required, e.g., \"0\", \"1\", \"001\")")]
+    #[serde(deserialize_with = "deserialize_string_or_number")]
+    #[schemars(description = "Agent ID to filter vulnerabilities by (required, e.g., \"0\", \"1\", \"001\"). Can be a string or number.")]
     pub agent_id: String,
     #[schemars(description = "Severity level to filter by (Low, Medium, High, Critical) (optional)")]
     pub severity: Option<String>,
@@ -27,7 +50,8 @@ pub struct GetVulnerabilitiesSummaryParams {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetCriticalVulnerabilitiesParams {
-    #[schemars(description = "Agent ID to get critical vulnerabilities for (required, e.g., \"0\", \"1\", \"001\")")]
+    #[serde(deserialize_with = "deserialize_string_or_number")]
+    #[schemars(description = "Agent ID to get critical vulnerabilities for (required, e.g., \"0\", \"1\", \"001\"). Can be a string or number.")]
     pub agent_id: String,
     #[schemars(description = "Maximum number of vulnerabilities to retrieve (default: 300)")]
     pub limit: Option<u32>,

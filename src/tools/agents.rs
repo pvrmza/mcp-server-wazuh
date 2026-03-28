@@ -1,5 +1,5 @@
 //! Agent tools module for Wazuh MCP Server
-//! 
+//!
 //! This module contains all agent-related tool implementations including:
 //! - Agent listing and filtering
 //! - Agent process monitoring
@@ -13,12 +13,35 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use wazuh_client::{AgentsClient, Port as WazuhPort, VulnerabilityClient};
 
+/// Custom deserializer that accepts both String and Number
+fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(i64),
+        Float(f64),
+    }
+
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(s) => Ok(s),
+        StringOrNumber::Number(n) => Ok(n.to_string()),
+        StringOrNumber::Float(f) => Ok(f.to_string()),
+    }
+}
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetAgentsParams {
     #[schemars(description = "Maximum number of agents to retrieve (default: 300)")]
     pub limit: Option<u32>,
+    #[serde(deserialize_with = "deserialize_string_or_number")]
     #[schemars(
-        description = "Agent status filter (active, disconnected, pending, never_connected)"
+        description = "Agent status filter (active, disconnected, pending, never_connected). Can be a string or number."
     )]
     pub status: String,
     #[schemars(description = "Agent name to search for (optional)")]
@@ -35,8 +58,9 @@ pub struct GetAgentsParams {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetAgentProcessesParams {
+    #[serde(deserialize_with = "deserialize_string_or_number")]
     #[schemars(
-        description = "Agent ID to get processes for (required, e.g., \"0\", \"1\", \"001\")"
+        description = "Agent ID to get processes for (required, e.g., \"0\", \"1\", \"001\"). Can be a string or number."
     )]
     pub agent_id: String,
     #[schemars(description = "Maximum number of processes to retrieve (default: 300)")]
@@ -47,15 +71,18 @@ pub struct GetAgentProcessesParams {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetAgentPortsParams {
+    #[serde(deserialize_with = "deserialize_string_or_number")]
     #[schemars(
-        description = "Agent ID to get network ports for (required, e.g., \"001\", \"002\", \"003\")"
+        description = "Agent ID to get network ports for (required, e.g., \"001\", \"002\", \"003\"). Can be a string or number."
     )]
     pub agent_id: String,
     #[schemars(description = "Maximum number of ports to retrieve (default: 300)")]
     pub limit: Option<u32>,
-    #[schemars(description = "Protocol to filter by (e.g., \"tcp\", \"udp\")")]
+    #[serde(deserialize_with = "deserialize_string_or_number")]
+    #[schemars(description = "Protocol to filter by (e.g., \"tcp\", \"udp\"). Can be a string or number.")]
     pub protocol: String,
-    #[schemars(description = "State to filter by (e.g., \"LISTENING\", \"ESTABLISHED\")")]
+    #[serde(deserialize_with = "deserialize_string_or_number")]
+    #[schemars(description = "State to filter by (e.g., \"LISTENING\", \"ESTABLISHED\"). Can be a string or number.")]
     pub state: String,
 }
 

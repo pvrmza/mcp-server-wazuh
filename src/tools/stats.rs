@@ -1,5 +1,5 @@
 //! Stats tools for Wazuh MCP Server
-//! 
+//!
 //! This module contains tools for retrieving various statistics from Wazuh components,
 //! including manager logs, remoted daemon stats, log collector stats, and weekly statistics.
 
@@ -11,13 +11,36 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use wazuh_client::{ClusterClient, LogsClient};
 
+/// Custom deserializer that accepts both String and Number for level field
+fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(i64),
+        Float(f64),
+    }
+
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(s) => Ok(s),
+        StringOrNumber::Number(n) => Ok(n.to_string()),
+        StringOrNumber::Float(f) => Ok(f.to_string()),
+    }
+}
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct SearchManagerLogsParams {
     #[schemars(description = "Maximum number of log entries to retrieve (default: 300)")]
     pub limit: Option<u32>,
     #[schemars(description = "Number of log entries to skip (default: 0)")]
     pub offset: Option<u32>,
-    #[schemars(description = "Log level to filter by (e.g., \"error\", \"warning\", \"info\")")]
+    #[serde(deserialize_with = "deserialize_string_or_number")]
+    #[schemars(description = "Log level to filter by (e.g., \"error\", \"warning\", \"info\"). Can be a string or number.")]
     pub level: String,
     #[schemars(description = "Log tag to filter by (e.g., \"wazuh-modulesd\") (optional)")]
     pub tag: Option<String>,
@@ -33,8 +56,9 @@ pub struct GetManagerErrorLogsParams {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetLogCollectorStatsParams {
+    #[serde(deserialize_with = "deserialize_string_or_number")]
     #[schemars(
-        description = "Agent ID to get log collector stats for (required, e.g., \"0\", \"1\", \"001\")"
+        description = "Agent ID to get log collector stats for (required, e.g., \"0\", \"1\", \"001\"). Can be a string or number."
     )]
     pub agent_id: String,
 }
